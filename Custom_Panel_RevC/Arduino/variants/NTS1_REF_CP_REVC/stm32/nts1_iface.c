@@ -31,7 +31,8 @@
  *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  //*/
 
-#include "../nts1_iface.h"
+
+#include "../nts1_common.h"
 
 #include <assert.h>
 
@@ -225,12 +226,12 @@ nts1_status_t s_spi_init()
   // See Reference Manual 28.5.10
   SPI_PERIPH->CR2 |= SPI_IT_RXNE;
 
-  // Empties the buffers for transmission and reception
-  // and reset counters
-  s_panel_rx_status = 0;
-  s_panel_rx_data_cnt = 0;
-  SPI_RX_BUF_RESET();
-  SPI_TX_BUF_RESET();
+  // // Empties the buffers for transmission and reception
+  // // and reset counters
+  // s_panel_rx_status = 0;
+  // s_panel_rx_data_cnt = 0;
+  // SPI_RX_BUF_RESET();
+  // SPI_TX_BUF_RESET();
   
   // Finally enables HAL SPI
   __HAL_SPI_ENABLE(&s_spi);
@@ -323,11 +324,11 @@ extern void SPI_IRQ_HANDLER()
       }
     }
     // Data is sent to the Tx FIFO register
-    s_spi_raw_fifo_push8(SPI_PERIPH, txdata);
+    s_spi_raw_fifo_push8(txdata);
   }
   else { // Set the dummy because the send buffer is empty.
     // Dummy data is sent to the TX FIFO register
-    s_spi_raw_fifo_push8(SPI_PERIPH, s_dummy_tx_cmd);
+    s_spi_raw_fifo_push8(s_dummy_tx_cmd);
   }
 
   // write one byte of data from the Tx buffer to the Tx FIFO.

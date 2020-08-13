@@ -32,7 +32,7 @@
 #ifndef _NTS1_H_
 #define _NTS1_H_
 
-#include "nts1_iface.h"
+#include <../../../variants/NTS1_REF_CP_REVC/nts1_iface.h>
 
 class NTS1 {
  public:
