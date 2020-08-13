@@ -9,5 +9,8 @@
             "+<*>",
             "+<../../../variants/NTS1_REF_CP_REVC/**>"
         ]
-    }
+    },
+    "dependencies": [
+        "SPI"
+    ]
 }
