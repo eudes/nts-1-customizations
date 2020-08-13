@@ -3,11 +3,11 @@
     "version": "1.0.0",
     "description": "nts-1-customizations",
     "keywords": "nts",
-        "build": {
+    "build": {
         "srcDir": "Custom_Panel_RevC/Arduino/libraries/NTS-1/src",
         "srcFilter": [
             "+<*>",
-            "+<../../../variants/NTS1_REF_CP_REVC/*>"
+            "+<../../../variants/NTS1_REF_CP_REVC/**>"
         ]
     }
 }
