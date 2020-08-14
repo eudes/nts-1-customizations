@@ -13,8 +13,10 @@
     },
     "export": {
         "include": [
-            "Custom_Panel_RevC/Arduino/variants/NTS1_REF_CP_REVC/*",
-            "Custom_Panel_RevC/Arduino/libraries/NTS-1/src/*"
+            "Custom_Panel_RevC/Arduino/variants/NTS1_REF_CP_REVC/**/*",
+            "Custom_Panel_RevC/Arduino/libraries/NTS-1/src/**/*"
         ]
-    }
+    },
+    "platforms": ["ststm32", "espressif32"],
+    "frameworks": ["arduino", "espidf"]
 }
