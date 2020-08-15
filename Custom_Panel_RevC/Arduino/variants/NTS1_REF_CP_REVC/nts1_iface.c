@@ -5,6 +5,23 @@
 #include "esp_types.h"
 #include "stdio.h"
 
+uint8_t s_panel_id = PANEL_ID_MASK;              // Bits 3-5 "ppp"="111"
+uint8_t s_dummy_tx_cmd = (PANEL_ID_MASK + 0xC7); // B'11ppp111;
+
+uint8_t s_started;
+
+uint8_t s_panel_rx_status;
+uint8_t s_panel_rx_data_cnt;
+uint8_t s_panel_rx_data[127];
+
+uint8_t s_spi_tx_buf[SPI_TX_BUF_SIZE];
+uint16_t s_spi_tx_ridx; // Read  Index (from s_spi_tx_buf)
+uint16_t s_spi_tx_widx; // Write Index (to s_spi_tx_buf)
+
+uint8_t s_spi_rx_buf[SPI_RX_BUF_SIZE];
+uint16_t s_spi_rx_ridx; // Read  Index (from s_spi_rx_buf)
+uint16_t s_spi_rx_widx; // Write Index (to s_spi_rx_buf)
+
 enum
 {
   k_tx_cmd_event = 0x84U,
@@ -454,12 +471,11 @@ nts1_status_t nts1_init()
   // More on this below
   nts1_status_t res = s_spi_init();
 
-  if (res != k_nts1_status_ok){
-    printf("KOKKOKOOOK!\n");
+  if (res != k_nts1_status_ok)
+  {
     return res;
   }
 
-  printf("done spi\n");
 
   // Sets the ACK pin to 1
   // More below
