@@ -31,7 +31,7 @@
  *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  //*/
 
-#if defined(STM32F030x8)
+#if defined(STM32F0xx)
 
 #include "../nts1_impl.h"
 

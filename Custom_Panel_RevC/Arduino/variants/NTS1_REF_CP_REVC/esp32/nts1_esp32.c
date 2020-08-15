@@ -97,6 +97,11 @@ nts1_status_t s_spi_init()
         return k_nts1_status_error;
     }
 
+    s_spi_tx_buf_write(s_dummy_tx_cmd);
+    s_spi_tx_buf_write(s_dummy_tx_cmd);
+    s_spi_tx_buf_write(s_dummy_tx_cmd);
+    s_spi_tx_buf_write(s_dummy_tx_cmd);
+
     return k_nts1_status_ok;
 }
 
@@ -173,7 +178,7 @@ nts1_status_t nts1_idle()
 
         if (!s_spi_chk_rx_buf_space(SPI_TRANSACTION_BYTES))
         {
-            printf("resetting rx\n");
+            // printf("resetting rx\n");
             // If there's no space for the full transaction, reset the buffer
             SPI_RX_BUF_RESET();
         }
