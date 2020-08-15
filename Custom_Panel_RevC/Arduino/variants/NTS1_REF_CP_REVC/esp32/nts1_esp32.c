@@ -47,64 +47,12 @@ extern inline void s_port_wait_ack(void)
 // Called after a transaction is queued and ready for pickup by master. We use this to set the ACK line high.
 void s_spi_irq_handler_post_setup(spi_slave_transaction_t *trans)
 {
-    // // if there's space for 4 bytes
-    // if (!s_spi_chk_rx_buf_space(32))
-    // {
-    //     // the ACK pin is set to 0
-    //     s_port_wait_ack();
-    //     // I assume this means the NTS1 will stop sending data
-    // }
-    // else
-    // { //Remaining buffer
-    //     // otherwise the ACK pin is set to 1
-    //     s_port_startup_ack();
-    //     // which will allow the NTS1 to send data
-    // }
     s_port_startup_ack();
-}
-
-uint8_t s_spi_rx_buf_check_idx_after_write()
-{
-    uint16_t bufdatacount;
-    if (s_spi_rx_ridx <= s_spi_rx_widx)
-    {
-        bufdatacount = s_spi_rx_widx - s_spi_rx_ridx;
-    }
-    else
-    {
-        bufdatacount = SPI_RX_BUF_SIZE + s_spi_rx_widx - s_spi_rx_ridx;
-    }
-    if (bufdatacount < (SPI_RX_BUF_SIZE - 2))
-    {
-        return true;
-    }
-    return false;
 }
 
 // Called after transaction is sent/received. We use this to set the ACK line low.
 void s_spi_irq_handler_post_transaction(spi_slave_transaction_t *trans)
 {
-    // // if there's no space for 4 bytes
-    // if (!s_spi_chk_rx_buf_space(32))
-    // {
-    //     // the ACK pin is set to 0
-    //     s_port_wait_ack();
-    //     // I assume this means the NTS1 will stop sending data
-    // }
-    // else
-    // { //Remaining buffer
-    //     // otherwise the ACK pin is set to 1
-    //     s_port_startup_ack();
-    //     // which will allow the NTS1 to send data
-    // }
-    // for (uint8_t i = 0; i < SPI_TRANSACTION_BYTES; i++)
-    // {
-    //     if (!s_spi_rx_buf_check_idx_after_write())
-    //     {
-    //         // If RxBuf is full, reset it.
-    //         SPI_RX_BUF_RESET();
-    //     }
-    // }
      s_port_wait_ack();
 }
 
