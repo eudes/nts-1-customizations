@@ -238,7 +238,6 @@ void s_rx_msg_handler(uint8_t data)
     else
     {
       if (s_panel_rx_status)
-        ESP_LOGD("resetting cmd\n");
       s_panel_rx_status = 0; // cancel any previous command reception
     }
     // exits the method to parse next byte
@@ -466,43 +465,6 @@ void s_rx_msg_handler(uint8_t data)
     s_panel_rx_data_cnt = 0; // Initialize data count
     break;
   }
-}
-
-// ----------------------------------------------------
-
-nts1_status_t nts1_init()
-{
-  // Init the ACK GPIO pin
-  s_ack_init();
-
-  // Empties the buffers for transmission and reception
-  // and reset counters
-  s_panel_rx_status = 0;
-  s_panel_rx_data_cnt = 0;
-  SPI_RX_BUF_RESET();
-  SPI_TX_BUF_RESET();
-
-  // More on this below
-  nts1_status_t res = s_spi_init();
-
-  if (res != k_nts1_status_ok)
-  {
-    return res;
-  }
-
-  // Sets the ACK pin to 1
-  // More below
-  s_port_startup_ack();
-  s_started = true;
-
-  return k_nts1_status_ok;
-}
-
-nts1_status_t nts1_teardown()
-{
-  nts1_status_t res = s_spi_teardown();
-
-  return res;
 }
 
 // ----------------------------------------------------

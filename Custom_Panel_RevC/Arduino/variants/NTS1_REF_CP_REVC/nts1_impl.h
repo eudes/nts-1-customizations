@@ -56,15 +56,7 @@ extern uint16_t s_spi_rx_widx; // Write Index (to s_spi_rx_buf)
 
 // -------------------------------------
 
-inline void s_port_startup_ack(void);
-inline void s_port_wait_ack(void);
-
-nts1_status_t s_spi_init();
-
-nts1_status_t s_spi_teardown();
-
-void s_ack_init();
-
+nts1_status_t nts1_init();
 nts1_status_t nts1_idle();
 
 // ----------------------------------------------------

@@ -81,7 +81,7 @@ static SPI_HandleTypeDef s_spi;
 
 // ----------------------------------------------------
 
-extern inline void s_port_startup_ack(void)
+static inline void s_port_startup_ack(void)
 {
   // This sets the ACK_PIN GPIO pin to 1
   // ACK_PORT is the GPIO device (of which the STM32 has 2)
@@ -97,7 +97,7 @@ extern inline void s_port_startup_ack(void)
   // NOTE: C doesn't guarantee that operations will be atomic.
 }
 
-extern inline void s_port_wait_ack(void)
+static inline void s_port_wait_ack(void)
 {
   // This sets the ACK_PIN GPIO pin to 0
   // Same as above, but the register is the Bit Reset Register
@@ -258,6 +258,34 @@ void s_ack_init()
   HAL_GPIO_Init(ACK_PORT, &gpio);
 }
 
+nts1_status_t nts1_init()
+{
+  // Init the ACK GPIO pin
+  s_ack_init();
+
+  // Empties the buffers for transmission and reception
+  // and reset counters
+  s_panel_rx_status = 0;
+  s_panel_rx_data_cnt = 0;
+  SPI_RX_BUF_RESET();
+  SPI_TX_BUF_RESET();
+
+  // More on this below
+  nts1_status_t res = s_spi_init();
+
+  if (res != k_nts1_status_ok)
+  {
+    return res;
+  }
+
+  // Sets the ACK pin to 1
+  // More below
+  s_port_startup_ack();
+  s_started = true;
+
+  return k_nts1_status_ok;
+}
+
 nts1_status_t s_spi_teardown()
 {
   __HAL_SPI_DISABLE(&s_spi);
@@ -265,6 +293,12 @@ nts1_status_t s_spi_teardown()
   return (nts1_status_t)HAL_OK;
 }
 
+nts1_status_t nts1_teardown()
+{
+  nts1_status_t res = s_spi_teardown();
+
+  return res;
+}
 // ----------------------------------------------------
 
 extern void SPI_IRQ_HANDLER()

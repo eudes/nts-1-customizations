@@ -33,12 +33,12 @@
 
 // ----------------------------------------
 
-extern inline void s_port_startup_ack(void)
+static inline void s_port_startup_ack(void)
 {
     WRITE_PERI_REG(GPIO_OUT_W1TS_REG, (1 << ACK_PIN));
 }
 
-extern inline void s_port_wait_ack(void)
+static inline void s_port_wait_ack(void)
 {
     WRITE_PERI_REG(GPIO_OUT_W1TC_REG, (1 << ACK_PIN));
 }
@@ -123,6 +123,34 @@ void s_ack_init()
     gpio_config(&io_conf);
 }
 
+nts1_status_t nts1_init()
+{
+  // Init the ACK GPIO pin
+  s_ack_init();
+
+  // Empties the buffers for transmission and reception
+  // and reset counters
+  s_panel_rx_status = 0;
+  s_panel_rx_data_cnt = 0;
+  SPI_RX_BUF_RESET();
+  SPI_TX_BUF_RESET();
+
+  // More on this below
+  nts1_status_t res = s_spi_init();
+
+  if (res != k_nts1_status_ok)
+  {
+    return res;
+  }
+
+  // Sets the ACK pin to 1
+  // More below
+  s_port_startup_ack();
+  s_started = true;
+
+  return k_nts1_status_ok;
+}
+
 // ----------------------------------------------------
 
 nts1_status_t nts1_idle()
@@ -183,7 +211,7 @@ nts1_status_t nts1_idle()
             SPI_RX_BUF_RESET();
         }
         // Point the the transaction's Rx buffer to the current Rx write idx
-        uint32_t *rx_buf_ptr = s_spi_rx_buf + s_spi_rx_widx;
+        uint32_t *rx_buf_ptr = (uint32_t *) s_spi_rx_buf + s_spi_rx_widx;
         // zero out the values; note that rx_buf_ptr points to 32 bits, not 8
         *rx_buf_ptr = 0;
         transaction.rx_buffer = (void *)rx_buf_ptr;
