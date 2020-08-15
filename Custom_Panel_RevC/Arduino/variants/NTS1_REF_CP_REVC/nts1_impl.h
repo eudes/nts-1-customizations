@@ -47,9 +47,11 @@ extern uint16_t s_spi_rx_widx; // Write Index (to s_spi_rx_buf)
 // --------------------------------------
 
 #define SPI_TX_BUF_RESET() (s_spi_tx_ridx = s_spi_tx_widx = 0)
+// Tx read an write indexes point to the same location
 #define SPI_TX_BUF_EMPTY() ((SPI_TX_BUF_MASK & s_spi_tx_ridx) == (SPI_TX_BUF_MASK & s_spi_tx_widx))
 #define SPI_RX_BUF_RESET() (s_spi_rx_ridx = s_spi_rx_widx = 0)
-#define SPI_RX_BUF_EMPTY() ((SPI_RX_BUF_MASK & s_spi_rx_ridx) == (SPI_RX_BUF_MASK & s_spi_rx_widx))
+// Rx read an write idexes point to the same location
+#define SPI_RX_BUF_EMPTY() ((SPI_RX_BUF_MASK & s_spi_rx_ridx) == (SPI_RX_BUF_MASK & s_spi_rx_widx)) 
 #define SPI_BUF_INC(idx, bufSize) (((idx + 1) == bufSize) ? 0 : idx + 1)
 
 // -------------------------------------

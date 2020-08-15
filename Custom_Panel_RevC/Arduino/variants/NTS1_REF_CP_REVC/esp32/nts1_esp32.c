@@ -24,6 +24,9 @@
 #define S_SPI_HOST VSPI_HOST // Use the SPI3 device
 #define DMA_CHANNEL 0        // disable dma, use direct spi buffer
 
+#define SPI_TRANSACTION_BYTES 4   // 4 bytes is the minimum the master supports
+#define SPI_TRANSACTION_BITS 32 // 4 bytes is the minimum the master supports
+
 // #define SPI_QUEUE_TTW 0
 #define SPI_QUEUE_TTW portMAX_DELAY
 
@@ -41,33 +44,68 @@ extern inline void s_port_wait_ack(void)
 
 // ----------------------------------------------------
 
-
 // Called after a transaction is queued and ready for pickup by master. We use this to set the ACK line high.
 void s_spi_irq_handler_post_setup(spi_slave_transaction_t *trans)
 {
-    if (!s_spi_chk_rx_buf_space(32))
+    // // if there's space for 4 bytes
+    // if (!s_spi_chk_rx_buf_space(32))
+    // {
+    //     // the ACK pin is set to 0
+    //     s_port_wait_ack();
+    //     // I assume this means the NTS1 will stop sending data
+    // }
+    // else
+    // { //Remaining buffer
+    //     // otherwise the ACK pin is set to 1
+    //     s_port_startup_ack();
+    //     // which will allow the NTS1 to send data
+    // }
+    s_port_startup_ack();
+}
+
+uint8_t s_spi_rx_buf_check_idx_after_write()
+{
+    uint16_t bufdatacount;
+    if (s_spi_rx_ridx <= s_spi_rx_widx)
     {
-        // the ACK pin is set to 0
-        s_port_wait_ack();
-        // I assume this means the NTS1 will stop sending data
+        bufdatacount = s_spi_rx_widx - s_spi_rx_ridx;
     }
     else
-    { //Remaining buffer
-        // otherwise the ACK pin is set to 1
-        s_port_startup_ack();
-        // which will allow the NTS1 to send data
+    {
+        bufdatacount = SPI_RX_BUF_SIZE + s_spi_rx_widx - s_spi_rx_ridx;
     }
+    if (bufdatacount < (SPI_RX_BUF_SIZE - 2))
+    {
+        return true;
+    }
+    return false;
 }
 
 // Called after transaction is sent/received. We use this to set the ACK line low.
 void s_spi_irq_handler_post_transaction(spi_slave_transaction_t *trans)
 {
-    s_port_wait_ack();
-    if (!s_spi_chk_rx_buf_space((SPI_RX_BUF_SIZE - 2)))
-    {
-        // If RxBuf is full, reset it.
-        SPI_RX_BUF_RESET();
-    }
+    // // if there's no space for 4 bytes
+    // if (!s_spi_chk_rx_buf_space(32))
+    // {
+    //     // the ACK pin is set to 0
+    //     s_port_wait_ack();
+    //     // I assume this means the NTS1 will stop sending data
+    // }
+    // else
+    // { //Remaining buffer
+    //     // otherwise the ACK pin is set to 1
+    //     s_port_startup_ack();
+    //     // which will allow the NTS1 to send data
+    // }
+    // for (uint8_t i = 0; i < SPI_TRANSACTION_BYTES; i++)
+    // {
+    //     if (!s_spi_rx_buf_check_idx_after_write())
+    //     {
+    //         // If RxBuf is full, reset it.
+    //         SPI_RX_BUF_RESET();
+    //     }
+    // }
+     s_port_wait_ack();
 }
 
 // ----------------------------------------------------
@@ -89,7 +127,7 @@ nts1_status_t s_spi_init()
     spi_slave_interface_config_t slvcfg = {
         .mode = SPI_MODE,
         .spics_io_num = SPI_CS_PIN,
-        .queue_size = 3,
+        .queue_size = 0xFFF,
         .flags = SPI_BITORDER,
         .post_setup_cb = s_spi_irq_handler_post_setup,
         .post_trans_cb = s_spi_irq_handler_post_transaction,
@@ -100,7 +138,7 @@ nts1_status_t s_spi_init()
 
     // TODO check that this works, the line wasn't like this in the main.c program
     // Pull the SCK line up (CPOL = 1, normally high)
-    //gpio_set_pull_mode(SPI_SCK_PIN, GPIO_PULLUP_ONLY);
+    gpio_set_pull_mode(SPI_SCK_PIN, GPIO_PULLUP_ONLY);
 
     //Initialize SPI slave interface
     if (!spi_slave_initialize(S_SPI_HOST, &buscfg, &slvcfg, DMA_CHANNEL))
@@ -108,7 +146,6 @@ nts1_status_t s_spi_init()
 
         return k_nts1_status_error;
     }
-
 
     return k_nts1_status_ok;
 }
@@ -132,64 +169,94 @@ void s_ack_init()
 }
 
 // ----------------------------------------------------
-// Interrupt
-
-// ----------------------------------------------------
-#define SPI_TRANSACTION_BYTES 4 // 4 bytes is the minimum the master supports
 
 nts1_status_t nts1_idle()
 {
     uint8_t txdata;
     spi_slave_transaction_t transaction;
-    transaction.length = 8*SPI_TRANSACTION_BYTES; 
-    uint8_t *tx_buf_ptr_first_byte = s_spi_tx_buf+s_spi_tx_ridx;
+    transaction.length = SPI_TRANSACTION_BITS;
+    uint8_t *tx_buf_ptr_first_byte = s_spi_tx_buf + s_spi_tx_ridx;
 
-    bool has_data = false;
     // HOST <- PANEL
-    for (uint8_t i = 0; i < SPI_TRANSACTION_BYTES; i++)
+    if (!SPI_TX_BUF_EMPTY() && !s_spi_chk_tx_buf_space(SPI_TRANSACTION_BYTES))
     {
-        if (SPI_TX_BUF_EMPTY()){
-            break;
-        } else { // Send buffer has data
-            has_data = true;
-            uint8_t *tx_buf_ptr = s_spi_tx_buf+s_spi_tx_ridx;
-            // If there's data to be sent
-            txdata = s_spi_tx_buf_read(); // read it and advance the read idx pointer
-            if (txdata & PANEL_START_BIT)
-            { // Check if the data contains 0x80 (is a Status message)
-                // if (!SPI_TX_BUF_EMPTY())
-                // { // There is (more) data (after the status) to be sent next in the send buffer
-                    // an EMARK is set on the status
-                    txdata |= PANEL_CMD_EMARK;
-                    // Note: this will set endmark on almost any status, especially those who have pending data,
-                    //       which seems to contradict the endmark common usage of marking only the last command of a group
-                // }
-            }
-
-            // Save changes to the buffer
-            *tx_buf_ptr = txdata;
-        }
+        printf("resetting tx\n");
+        // If there's no space for the full transaction, reset the buffer
+        SPI_TX_BUF_RESET();
     }
 
-    if(has_data){
-        transaction.tx_buffer = (void *) tx_buf_ptr_first_byte;
-        // Point the rx buffer of the transaction to the current write idx
-        uint8_t *rx_buf_ptr = s_spi_rx_buf + s_spi_rx_widx;
-        // Increase the write idx to avoid ovewriting the reseved memory
-        s_spi_rx_widx = SPI_BUF_INC(s_spi_rx_widx, SPI_RX_BUF_SIZE);
-        transaction.rx_buffer = (void *) rx_buf_ptr;
-        
+    uint8_t tx_added_bytes_ctr = 0;
+    for (; tx_added_bytes_ctr < SPI_TRANSACTION_BYTES; tx_added_bytes_ctr++)
+    {
+        // If there's no data to be sent in the Tx buffer, exit the loop
+        if (SPI_TX_BUF_EMPTY())
+            break;
+
+        // Save a pointer to the current read location on the Tx buffer
+        uint8_t *tx_buf_ptr = s_spi_tx_buf + s_spi_tx_ridx;
+
+        // read it and advance the read idx pointer
+        txdata = s_spi_tx_buf_read();
+
+        // Check if the data is a Status message
+        if (txdata & PANEL_START_BIT)
+        {
+            // Check if there is more data (after the status) to be sent next in the send buffer
+            if (!SPI_TX_BUF_EMPTY())
+            {
+                // Set the END_MARK on the status
+                txdata |= PANEL_CMD_EMARK;
+                // Note: this will set endmark on almost any status, especially those who have pending data,
+                //       which seems to contradict the endmark common usage of marking only the last command of a group
+            }
+        }
+
+        // Save changes to the buffer
+        *tx_buf_ptr = txdata;
+    }
+
+    // If we processed any bytes for the transaction
+    if (tx_added_bytes_ctr)
+    {
+        // Point the transaction's Tx buffer to the first byte we want to send
+        // from the software Tx buffer
+        transaction.tx_buffer = (void *)tx_buf_ptr_first_byte;
+
+        if (!s_spi_chk_rx_buf_space(SPI_TRANSACTION_BYTES))
+        {
+            printf("resetting rx\n");
+            // If there's no space for the full transaction, reset the buffer
+            SPI_RX_BUF_RESET();
+        }
+        // Point the the transaction's Rx buffer to the current Rx write idx
+        uint32_t *rx_buf_ptr = s_spi_rx_buf + s_spi_rx_widx;
+        // zero out the values; note that rx_buf_ptr points to 32 bits, not 8
+        *rx_buf_ptr = 0;
+        transaction.rx_buffer = (void *)rx_buf_ptr;
+
+        // We always need to increase both counters by the length of the
+        // transaction because the transaction will always read and write
+        // transaction.lenght bits from the respective buffers
+        for (uint8_t i = 0; i < SPI_TRANSACTION_BYTES; i++)
+        {
+            // Always increase Rx write counter
+            s_spi_rx_widx = SPI_BUF_INC(s_spi_rx_widx, SPI_RX_BUF_SIZE);
+            // Increase Tx read counter if we haven't already in the first loop
+            if (i >= tx_added_bytes_ctr)
+            {
+                s_spi_tx_ridx = SPI_BUF_INC(s_spi_tx_ridx, SPI_TX_BUF_SIZE);
+            }
+        }
+
         spi_slave_queue_trans(S_SPI_HOST, &transaction, SPI_QUEUE_TTW);
     }
 
-    // write one byte of data from the Tx buffer to the Tx FIFO.
-    // if the byte is a Status message, and it has more data after it,
-    // add the ENDMARK (byte 7 set to 1)
-    // If there's no data to be sent, write the DUMMY message
     // HOST I/F Give priority to Idle processing of received data
     // As long as the reception buffer is not empty
     while (!SPI_RX_BUF_EMPTY())
     {
+        // TODO we might be dropping whatever is in the Rx buffer most of the time with the reset above
+
         // Reads from the buffer and executes the handler
         s_rx_msg_handler(s_spi_rx_buf_read());
     }

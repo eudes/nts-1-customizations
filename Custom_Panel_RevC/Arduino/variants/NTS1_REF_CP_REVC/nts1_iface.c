@@ -104,6 +104,7 @@ uint8_t s_spi_rx_buf_read(void)
   return data;
 }
 
+// Check if there is space in the buffer to accomodate `size` in number of bits
 uint8_t s_spi_chk_tx_buf_space(uint16_t size)
 {
   uint16_t count;
@@ -260,6 +261,8 @@ void s_rx_msg_handler(uint8_t data)
     // 1x111 100
   case k_rx_cmd_event:
   {
+    printf("received cmd_event\n");
+
     // this will push stuff into the array
     // for future use
     s_panel_rx_data[s_panel_rx_data_cnt++] = data;
@@ -340,6 +343,8 @@ void s_rx_msg_handler(uint8_t data)
   // 1x111 101
   case k_rx_cmd_param:
   {
+    printf("received cmd_param\n");
+
     s_panel_rx_data[s_panel_rx_data_cnt++] = data;
 
     if (s_panel_rx_data_cnt < 4)
@@ -366,6 +371,8 @@ void s_rx_msg_handler(uint8_t data)
   // 1x111 110
   case k_rx_cmd_other:
   {
+            printf("received cmd_other\n");
+
     // continue reading until we have the full command
     s_panel_rx_data[s_panel_rx_data_cnt++] = data;
     // it's important to note that here, if s_panel_rx_data[0] (size)
@@ -445,6 +452,8 @@ void s_rx_msg_handler(uint8_t data)
   } // end case k_rx_cmd_other:
   // 1x111 111
   case k_rx_cmd_dummy:
+          printf("received dummy\n");
+
     // continues to default
   default:
     // resets
@@ -475,7 +484,6 @@ nts1_status_t nts1_init()
   {
     return res;
   }
-
 
   // Sets the ACK pin to 1
   // More below
