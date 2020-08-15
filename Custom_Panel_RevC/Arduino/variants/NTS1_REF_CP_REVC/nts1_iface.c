@@ -238,6 +238,8 @@ void s_rx_msg_handler(uint8_t data)
     }
     else
     {
+      if (s_panel_rx_status)
+        printf("resetting cmd\n");
       s_panel_rx_status = 0; // cancel any previous command reception
     }
     // exits the method to parse next byte
@@ -371,23 +373,28 @@ void s_rx_msg_handler(uint8_t data)
   // 1x111 110
   case k_rx_cmd_other:
   {
-            printf("received cmd_other\n");
+    printf("received cmd_other\n");
 
     // continue reading until we have the full command
     s_panel_rx_data[s_panel_rx_data_cnt++] = data;
     // it's important to note that here, if s_panel_rx_data[0] (size)
     // is 0, the break will never happen
     if (s_panel_rx_data_cnt < (s_panel_rx_data[0] - 1))
+    {
+      printf("received cmd_other need more data\n");
       break; // need more data
+    }
 
     if (s_panel_rx_data_cnt < 2)
     {
+      printf("received cmd_other reset\n");
       // Command too short - ignore and reset
       s_panel_rx_status = 0;
       s_panel_rx_data_cnt = 0;
       break;
     }
 
+    printf("received cmd_other parsing\n");
     // switches on the 3rd byte (MessageID)
     switch (s_panel_rx_data[1])
     {
@@ -452,7 +459,7 @@ void s_rx_msg_handler(uint8_t data)
   } // end case k_rx_cmd_other:
   // 1x111 111
   case k_rx_cmd_dummy:
-          printf("received dummy\n");
+    printf("received dummy\n");
 
     // continues to default
   default:

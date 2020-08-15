@@ -20,15 +20,16 @@
 
 #define SPI_MODE 3
 #define SPI_BITORDER SPI_SLAVE_BIT_LSBFIRST
+//#define SPI_BITORDER SPI_SLAVE_RXBIT_LSBFIRST
 
 #define S_SPI_HOST VSPI_HOST // Use the SPI3 device
 #define DMA_CHANNEL 0        // disable dma, use direct spi buffer
 
-#define SPI_TRANSACTION_BYTES 4   // 4 bytes is the minimum the master supports
+#define SPI_TRANSACTION_BYTES 4 // 4 bytes is the minimum the master supports
 #define SPI_TRANSACTION_BITS 32 // 4 bytes is the minimum the master supports
 
-// #define SPI_QUEUE_TTW 0
-#define SPI_QUEUE_TTW portMAX_DELAY
+#define SPI_QUEUE_TTW 10
+// #define SPI_QUEUE_TTW portMAX_DELAY
 
 // ----------------------------------------
 
@@ -44,16 +45,19 @@ extern inline void s_port_wait_ack(void)
 
 // ----------------------------------------------------
 
+uint32_t ready_transactions = 0;
+
 // Called after a transaction is queued and ready for pickup by master. We use this to set the ACK line high.
 void s_spi_irq_handler_post_setup(spi_slave_transaction_t *trans)
 {
     s_port_startup_ack();
+    ready_transactions += 1;
 }
 
 // Called after transaction is sent/received. We use this to set the ACK line low.
 void s_spi_irq_handler_post_transaction(spi_slave_transaction_t *trans)
 {
-     s_port_wait_ack();
+    s_port_wait_ack();
 }
 
 // ----------------------------------------------------
@@ -84,14 +88,12 @@ nts1_status_t s_spi_init()
     // Pull down on the Chip Select pin to make it always on
     gpio_set_pull_mode(SPI_CS_PIN, GPIO_PULLDOWN_ONLY);
 
-    // TODO check that this works, the line wasn't like this in the main.c program
     // Pull the SCK line up (CPOL = 1, normally high)
     gpio_set_pull_mode(SPI_SCK_PIN, GPIO_PULLUP_ONLY);
 
     //Initialize SPI slave interface
     if (!spi_slave_initialize(S_SPI_HOST, &buscfg, &slvcfg, DMA_CHANNEL))
     {
-
         return k_nts1_status_error;
     }
 
@@ -128,7 +130,6 @@ nts1_status_t nts1_idle()
     // HOST <- PANEL
     if (!SPI_TX_BUF_EMPTY() && !s_spi_chk_tx_buf_space(SPI_TRANSACTION_BYTES))
     {
-        printf("resetting tx\n");
         // If there's no space for the full transaction, reset the buffer
         SPI_TX_BUF_RESET();
     }
@@ -184,7 +185,7 @@ nts1_status_t nts1_idle()
 
         // We always need to increase both counters by the length of the
         // transaction because the transaction will always read and write
-        // transaction.lenght bits from the respective buffers
+        // transaction.length bits from the respective buffers
         for (uint8_t i = 0; i < SPI_TRANSACTION_BYTES; i++)
         {
             // Always increase Rx write counter
@@ -199,12 +200,18 @@ nts1_status_t nts1_idle()
         spi_slave_queue_trans(S_SPI_HOST, &transaction, SPI_QUEUE_TTW);
     }
 
+    if (ready_transactions)
+    {
+        // It's mandatory to call this function if using spi_slave_queue_trans
+        spi_slave_transaction_t *out;
+        spi_slave_get_trans_result(S_SPI_HOST, &out, SPI_QUEUE_TTW);
+        ready_transactions -= 1;
+    }
+
     // HOST I/F Give priority to Idle processing of received data
     // As long as the reception buffer is not empty
     while (!SPI_RX_BUF_EMPTY())
     {
-        // TODO we might be dropping whatever is in the Rx buffer most of the time with the reset above
-
         // Reads from the buffer and executes the handler
         s_rx_msg_handler(s_spi_rx_buf_read());
     }
